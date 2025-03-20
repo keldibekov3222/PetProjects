@@ -1,1 +1,4 @@
-"MONGO_URI": "mongodb+srv://<username>:<password>@<cluster>/?retryWrites=true&w=majority"
+{
+  "MONGO_URI": "mongodb+srv://redactor:35KE3YEExk4YPpy@mongotest.fp17s.mongodb.net/?retryWrites=true&w=majority&appName=MongoTest"
+}
+
