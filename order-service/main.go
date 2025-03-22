@@ -7,6 +7,7 @@ import (
 	"order-service/config"
 	"order-service/handlers"
 	"order-service/repositories"
+	"order-service/routes"
 	"order-service/services"
 )
 
@@ -31,26 +32,20 @@ func main() {
 		log.Fatal("orderRepo is nil")
 	}
 	productRepo := repositories.NewProductRepository(mongoRepo.DB)
+	userRepo := repositories.NewUserRepository(mongoRepo.DB)
 
 	orderService := services.NewOrderService(orderRepo)
 	productService := services.NewProductService(productRepo)
+	userService := services.NewUserService(userRepo)
 
 	orderHandler := handlers.NewOrderHandler(orderService)
-	pruductHandler := handlers.NewProductHandler(productService)
+	productHandler := handlers.NewProductHandler(productService)
+	userHandler := handlers.NewUserHandler(userService)
 
 	r := gin.Default()
 
-	r.POST("/orders", orderHandler.CreateOrder)
-	r.GET("/orders/:id", orderHandler.GetOrderById)
-	r.GET("/orders/", orderHandler.GetAllOrders)
-	r.DELETE("/orders/:id", orderHandler.DeleteOrder)
-	r.PUT("/orders/:id", orderHandler.UpdateOrder)
-
-	r.POST("/products", pruductHandler.CreateProduct)
-	r.GET("/products", pruductHandler.GetAllProducts)
-	r.GET("/products/:id", pruductHandler.GetProductById)
-	r.PUT("/products/:id", pruductHandler.UpdateProduct)
-	r.DELETE("/products/:id", pruductHandler.DeleteProduct)
+	// Вызов функции для регистрации маршрутов
+	routes.RegisterRoutes(r, userHandler, orderHandler, productHandler)
 
 	r.Run(":8080")
 }

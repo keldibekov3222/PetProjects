@@ -11,12 +11,6 @@ type Product struct {
 	IDString    string             `bson:"-"` // Игнорируем это поле при работе с MongoDB
 }
 
-type User struct {
-	ID       primitive.ObjectID `bson:"_id,omitempty"`
-	Username string             `bson:"username"`
-	Email    string             `bson:"email"`
-	Password string             `bson:"password"`
-}
 type ProductResponse struct {
 	ID          string  `json:"id"`
 	Name        string  `json:"name"`

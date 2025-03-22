@@ -42,7 +42,6 @@ func (s *ProductService) UpdateProduct(id string, updatedProduct *models.Product
 	return updatedProduct, nil
 }
 
-// ❌ Удаление продукта
 func (s *ProductService) DeleteProduct(id string) error {
 	objID, err := primitive.ObjectIDFromHex(id)
 	if err != nil {
