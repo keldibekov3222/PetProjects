@@ -13,3 +13,4 @@ Golang pet projects
 6. [Parser](https://github.com/keldibekov3222/PetProjects/tree/main/parser): Parser with Seleneium
 7. [redis-go](https://github.com/keldibekov3222/PetProjects/tree/main/redis-go): Redis+Chi
 8. [todo-app](https://github.com/keldibekov3222/Todo-App): Gin/PostgreSQL
+9. [order-service](https://github.com/keldibekov3222/PetProjects/tree/main/order-service): Gin/PostgreSQL/MongoDB/Redis/Kafka/Docker-compose
