@@ -3,11 +3,12 @@ package repositories
 import (
 	"context"
 	"fmt"
-	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5"
 	"log"
 	"order-service/models"
 	"time"
+
+	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 )
 
 type OrderRepository struct {
@@ -100,4 +101,46 @@ func (r *OrderRepository) DeleteOrder(id string) error {
 		return err
 	}
 	return nil
+}
+
+func (r *OrderRepository) GetOrdersByUserID(userID string) ([]models.Order, error) {
+	ctx := context.Background()
+
+	// Создаем SQL запрос для получения заказов пользователя
+	query := `
+		SELECT id, user_id, total_price, status, created_at, updated_at 
+		FROM orders 
+		WHERE user_id = $1`
+
+	// Выполняем запрос
+	rows, err := r.DB.Query(ctx, query, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	// Создаем слайс для хранения результатов
+	var orders []models.Order
+
+	// Получаем все заказы
+	for rows.Next() {
+		var order models.Order
+		if err := rows.Scan(
+			&order.ID,
+			&order.UserID,
+			&order.TotalPrice,
+			&order.Status,
+			&order.CreatedAt,
+			&order.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		orders = append(orders, order)
+	}
+
+	if err = rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return orders, nil
 }

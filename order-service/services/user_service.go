@@ -1,21 +1,27 @@
 package services
 
 import (
+	"context"
+	"encoding/json"
 	"fmt"
-	"github.com/dgrijalva/jwt-go"
-	"golang.org/x/crypto/bcrypt"
 	"order-service/models"
 	"order-service/repositories"
 	"time"
+
+	"github.com/dgrijalva/jwt-go"
+	"github.com/redis/go-redis/v9"
+	"golang.org/x/crypto/bcrypt"
 )
 
 type UserService struct {
-	Repo *repositories.UserRepository
+	Repo        *repositories.UserRepository
+	RedisClient *redis.Client
 }
 
-func NewUserService(repo *repositories.UserRepository) *UserService {
+func NewUserService(repo *repositories.UserRepository, redisClient *redis.Client) *UserService {
 	return &UserService{
-		Repo: repo,
+		Repo:        repo,
+		RedisClient: redisClient,
 	}
 }
 
@@ -87,16 +93,33 @@ func (s *UserService) generateJWT(user *models.User) (string, error) {
 }
 
 func (s *UserService) GetUserByID(id string) (*models.User, error) {
+	// Проверяем кэш
+	cacheKey := fmt.Sprintf("user:%s", id)
+	if cached, err := s.RedisClient.Get(context.Background(), cacheKey).Result(); err == nil {
+		var user models.User
+		if err := json.Unmarshal([]byte(cached), &user); err == nil {
+			return &user, nil
+		}
+	}
+
+	// Если нет в кэше, получаем из БД
 	user, err := s.Repo.GetUserByID(id)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("user not found")
 	}
+
+	// Сохраняем в кэш
+	if userJSON, err := json.Marshal(user); err == nil {
+		s.RedisClient.Set(context.Background(), cacheKey, userJSON, 12*time.Hour)
+	}
+
 	return user, nil
 }
 
 func (s *UserService) GetAllUsers() ([]models.User, error) {
 	return s.Repo.GetAllUsers()
 }
+
 func (s *UserService) UpdateUser(id string, updatedUser *models.User) (*models.User, error) {
 	// Проверка на наличие пользователя
 	user, err := s.Repo.GetUserByID(id)
@@ -116,20 +139,16 @@ func (s *UserService) UpdateUser(id string, updatedUser *models.User) (*models.U
 
 	return user, nil
 }
+
 func (s *UserService) DeleteUser(id string) error {
-	// Проверка на наличие пользователя
-	user, err := s.Repo.GetUserByID(id)
+	// Проверяем кэш
+	cacheKey := fmt.Sprintf("user:%s", id)
+	s.RedisClient.Del(context.Background(), cacheKey)
+
+	// Удаляем пользователя
+	err := s.Repo.DeleteUser(id)
 	if err != nil {
 		return fmt.Errorf("user not found")
-	}
-
-	// Преобразуем ID в строку, если нужно
-	idStr := fmt.Sprintf("%d", user.ID)
-
-	// Удаляем пользователя по строковому ID
-	err = s.Repo.DeleteUser(idStr)
-	if err != nil {
-		return err
 	}
 
 	return nil

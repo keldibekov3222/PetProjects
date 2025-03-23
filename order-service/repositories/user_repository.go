@@ -3,10 +3,11 @@ package repositories
 import (
 	"context"
 	"fmt"
+	"order-service/models"
+
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
-	"order-service/models"
 )
 
 type UserRepository struct {
@@ -94,9 +95,17 @@ func (r *UserRepository) DeleteUser(id string) error {
 	// В случае MongoDB нужно использовать ObjectID, если ID хранится как строка
 	objID, err := primitive.ObjectIDFromHex(id)
 	if err != nil {
+		return fmt.Errorf("invalid user ID format: %v", err)
+	}
+
+	result, err := r.DB.Collection("users").DeleteOne(context.Background(), bson.M{"_id": objID})
+	if err != nil {
 		return err
 	}
 
-	_, err = r.DB.Collection("users").DeleteOne(context.Background(), bson.M{"_id": objID})
-	return err
+	if result.DeletedCount == 0 {
+		return fmt.Errorf("user not found")
+	}
+
+	return nil
 }

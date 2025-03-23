@@ -2,14 +2,15 @@ package main
 
 import (
 	"context"
-	"github.com/gin-gonic/gin"
-	"github.com/redis/go-redis/v9"
 	"log"
 	"order-service/config"
 	"order-service/handlers"
 	"order-service/repositories"
 	"order-service/routes"
 	"order-service/services"
+
+	"github.com/gin-gonic/gin"
+	"github.com/redis/go-redis/v9"
 )
 
 func main() {
@@ -43,9 +44,9 @@ func main() {
 	userRepo := repositories.NewUserRepository(mongoRepo.DB)
 
 	// Сервисы
-	orderService := services.NewOrderService(orderRepo)
-	productService := services.NewProductService(productRepo)
-	userService := services.NewUserService(userRepo)
+	orderService := services.NewOrderService(orderRepo, redisClient)
+	productService := services.NewProductService(productRepo, redisClient)
+	userService := services.NewUserService(userRepo, redisClient)
 	cartService := services.NewCartService(redisClient, productRepo, orderRepo)
 
 	// Хендлеры
