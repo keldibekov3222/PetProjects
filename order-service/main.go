@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"github.com/gin-gonic/gin"
+	"github.com/redis/go-redis/v9"
 	"log"
 	"order-service/config"
 	"order-service/handlers"
@@ -12,7 +13,10 @@ import (
 )
 
 func main() {
+	// Загружаем конфигурацию
 	cfg := config.LoadConfig()
+
+	// Подключение к PostgreSQL для заказов
 	db, err := repositories.ConnectDB(cfg)
 	if err != nil {
 		log.Fatal(err)
@@ -22,30 +26,42 @@ func main() {
 		db.Close(context.Background())
 	}()
 
+	// Подключение к MongoDB для продуктов и пользователей
 	mongoRepo, err := repositories.NewMongoDBRepository(cfg.MongoURI, cfg.MongoDB)
 	if err != nil {
 		log.Fatal("Failed to connect to MongoDB", err)
 	}
 
+	// Подключение к Redis для корзины
+	redisClient := redis.NewClient(&redis.Options{
+		Addr: cfg.RedisAddr,
+	})
+
+	// Репозитории
 	orderRepo := repositories.NewOrderRepository(db)
-	if orderRepo == nil {
-		log.Fatal("orderRepo is nil")
-	}
 	productRepo := repositories.NewProductRepository(mongoRepo.DB)
 	userRepo := repositories.NewUserRepository(mongoRepo.DB)
 
+	// Сервисы
 	orderService := services.NewOrderService(orderRepo)
 	productService := services.NewProductService(productRepo)
 	userService := services.NewUserService(userRepo)
+	cartService := services.NewCartService(redisClient, productRepo, orderRepo)
 
+	// Хендлеры
 	orderHandler := handlers.NewOrderHandler(orderService)
 	productHandler := handlers.NewProductHandler(productService)
 	userHandler := handlers.NewUserHandler(userService)
+	cartHandler := handlers.NewCartHandler(cartService)
 
+	// Создание и настройка Gin
 	r := gin.Default()
 
-	// Вызов функции для регистрации маршрутов
-	routes.RegisterRoutes(r, userHandler, orderHandler, productHandler)
+	// Регистрация маршрутов
+	routes.RegisterRoutes(r, userHandler, orderHandler, productHandler, cartHandler)
 
-	r.Run(":8080")
+	// Запуск сервера
+	if err := r.Run(":8080"); err != nil {
+		log.Fatal("Error starting server:", err)
+	}
 }

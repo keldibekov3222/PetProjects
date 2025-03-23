@@ -5,7 +5,7 @@ import (
 	"order-service/handlers"
 )
 
-func RegisterRoutes(r *gin.Engine, userHandler *handlers.UserHandler, orderHandler *handlers.OrderHandler, productHandler *handlers.ProductHandler) {
+func RegisterRoutes(r *gin.Engine, userHandler *handlers.UserHandler, orderHandler *handlers.OrderHandler, productHandler *handlers.ProductHandler, cartHandler *handlers.CartHandler) {
 	// Регистрация маршрутов для пользователей
 	r.POST("/register", userHandler.Register)
 	r.POST("/login", userHandler.Login)
@@ -27,4 +27,10 @@ func RegisterRoutes(r *gin.Engine, userHandler *handlers.UserHandler, orderHandl
 	r.GET("/products/:id", productHandler.GetProductById)
 	r.PUT("/products/:id", productHandler.UpdateProduct)
 	r.DELETE("/products/:id", productHandler.DeleteProduct)
+
+	// Регистрация маршрутов для корзины
+	r.POST("/cart/:userID", cartHandler.AddToCart)
+	r.GET("/cart/:userID", cartHandler.GetCart)
+	r.DELETE("/cart/:userID/:productID", cartHandler.RemoveFromCart)
+	r.POST("/checkout/:userID", cartHandler.CheckoutCart)
 }

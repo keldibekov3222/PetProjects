@@ -78,8 +78,24 @@ func (r *ProductRepository) UpdateProduct(id primitive.ObjectID, updatedProduct 
 	return err
 }
 
-// ❌ Удаление продукта
 func (r *ProductRepository) DeleteProduct(id primitive.ObjectID) error {
 	_, err := r.db.Collection("products").DeleteOne(context.Background(), bson.M{"_id": id})
 	return err
+}
+func (repo *ProductRepository) GetProductPrice(productID string) (float64, error) {
+	objID, err := primitive.ObjectIDFromHex(productID) // Конвертируем строку в ObjectID
+	if err != nil {
+		return 0, fmt.Errorf("invalid product ID format: %v", err)
+	}
+
+	var product models.Product
+	err = repo.db.Collection("products").FindOne(context.Background(), bson.M{"_id": objID}).Decode(&product)
+	if err != nil {
+		if err == mongo.ErrNoDocuments {
+			return 0, fmt.Errorf("product not found")
+		}
+		return 0, err
+	}
+
+	return product.Price, nil
 }

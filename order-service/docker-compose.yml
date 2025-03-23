@@ -69,6 +69,9 @@ services:
       - CONFIG_PATH=config/config.env
       - MONGO_URI=mongodb://user:password@mongodb:27017/orders_db?authSource=admin
       - MONGO_DB=orders_db
+      - REDIS_ADDR=redis:6379
+      - REDIS_PASSWORD=
+      - REDIS_DB=0
     volumes:
       - .:/app
       - ./config/config.env:/app/config/config.env
