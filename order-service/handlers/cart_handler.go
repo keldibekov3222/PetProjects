@@ -1,10 +1,10 @@
 package handlers
 
 import (
-	"github.com/gin-gonic/gin"
 	"net/http"
 	"order-service/services"
-	"strconv"
+
+	"github.com/gin-gonic/gin"
 )
 
 type CartHandler struct {
@@ -15,21 +15,25 @@ func NewCartHandler(cartService *services.CartService) *CartHandler {
 	return &CartHandler{CartService: cartService}
 }
 
+// AddToCartRequest представляет структуру запроса для добавления товара в корзину
+type AddToCartRequest struct {
+	ProductID string `json:"productId" binding:"required"`
+	Quantity  int    `json:"quantity" binding:"required,min=1"`
+}
+
 // AddToCart добавляет товар в корзину
 func (h *CartHandler) AddToCart(c *gin.Context) {
 	userID := c.Param("userID")
-	productID := c.Param("productID")
-	quantity := c.DefaultQuery("quantity", "1") // Количество товара, по умолчанию 1
 
-	// Преобразуем количество из строки в число
-	qty, err := strconv.Atoi(quantity)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid quantity"})
+	// Получаем данные из тела запроса
+	var request AddToCartRequest
+	if err := c.ShouldBindJSON(&request); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request format"})
 		return
 	}
 
 	// Добавляем товар в корзину
-	err = h.CartService.AddToCart(userID, productID, qty)
+	err := h.CartService.AddToCart(userID, request.ProductID, request.Quantity)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return

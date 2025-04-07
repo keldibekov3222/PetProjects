@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"order-service/models"
 	"order-service/repositories"
+	"strings"
 	"time"
 
 	"github.com/redis/go-redis/v9"
@@ -78,6 +79,29 @@ func (s *ProductService) GetAllProducts() ([]models.ProductResponse, error) {
 }
 
 func (s *ProductService) UpdateProduct(id string, updatedProduct *models.Product) (*models.Product, error) {
+	// Проверяем, является ли ID UUID (содержит дефисы)
+	if strings.Contains(id, "-") {
+		// Если это UUID, получаем продукт по IDString
+		product, err := s.Repo.GetProductById(id)
+		if err != nil {
+			return nil, err
+		}
+
+		// Обновляем в БД
+		err = s.Repo.UpdateProduct(product.ID, updatedProduct)
+		if err != nil {
+			return nil, err
+		}
+
+		// Инвалидируем кэш
+		cacheKey := fmt.Sprintf("product:%s", id)
+		s.RedisClient.Del(context.Background(), cacheKey)
+		s.RedisClient.Del(context.Background(), "products:all")
+
+		return updatedProduct, nil
+	}
+
+	// Если это не UUID, пробуем преобразовать в ObjectID
 	objID, err := primitive.ObjectIDFromHex(id)
 	if err != nil {
 		return nil, errors.New("invalid product ID format")
@@ -98,6 +122,19 @@ func (s *ProductService) UpdateProduct(id string, updatedProduct *models.Product
 }
 
 func (s *ProductService) DeleteProduct(id string) error {
+	// Проверяем, является ли ID UUID (содержит дефисы)
+	if strings.Contains(id, "-") {
+		// Если это UUID, получаем продукт по IDString
+		product, err := s.Repo.GetProductById(id)
+		if err != nil {
+			return err
+		}
+
+		// Удаляем из БД
+		return s.Repo.DeleteProduct(product.ID)
+	}
+
+	// Если это не UUID, пробуем преобразовать в ObjectID
 	objID, err := primitive.ObjectIDFromHex(id)
 	if err != nil {
 		return errors.New("invalid product ID format")

@@ -1,8 +1,9 @@
 package routes
 
 import (
-	"github.com/gin-gonic/gin"
 	"order-service/handlers"
+
+	"github.com/gin-gonic/gin"
 )
 
 func RegisterRoutes(r *gin.Engine, userHandler *handlers.UserHandler, orderHandler *handlers.OrderHandler, productHandler *handlers.ProductHandler, cartHandler *handlers.CartHandler) {
@@ -30,7 +31,7 @@ func RegisterRoutes(r *gin.Engine, userHandler *handlers.UserHandler, orderHandl
 
 	// Регистрация маршрутов для корзины
 	r.POST("/cart/:userID", cartHandler.AddToCart)
-	r.GET("/cart/:userID", cartHandler.GetCart)
 	r.DELETE("/cart/:userID/:productID", cartHandler.RemoveFromCart)
-	r.POST("/checkout/:userID", cartHandler.CheckoutCart)
+	r.GET("/cart/:userID", cartHandler.GetCart)
+	r.POST("/cart/:userID/checkout", cartHandler.CheckoutCart)
 }

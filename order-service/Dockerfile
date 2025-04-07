@@ -18,14 +18,15 @@ RUN CGO_ENABLED=0 go build -o /app/main .
 FROM alpine:latest
 
 # Устанавливаем рабочую директорию
-WORKDIR /root/
+WORKDIR /app
 
 # Копируем бинарник из builder-контейнера
-COPY --from=builder /app/main /root/main
-COPY config/config.env config/config.env
+COPY --from=builder /app/main /app/main
+COPY --from=builder /app/config/config.env /app/config/config.env
+COPY --from=builder /app/db/migrations /app/db/migrations
 
 # Даём права на выполнение
-RUN chmod +x ./main
+RUN chmod +x /app/main
 
-# **ЯВНО УКАЗЫВАЕМ ЗАПУСК `./main`**
-ENTRYPOINT ["./main"]
+# **ЯВНО УКАЗЫВАЕМ ЗАПУСК `/app/main`**
+ENTRYPOINT ["/app/main"]

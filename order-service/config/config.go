@@ -1,10 +1,11 @@
 package config
 
 import (
-	"github.com/joho/godotenv"
 	"log"
 	"os"
 	"strconv"
+
+	"github.com/joho/godotenv"
 )
 
 type Config struct {
@@ -18,6 +19,7 @@ type Config struct {
 	RedisAddr     string // Адрес Redis
 	RedisPassword string // Пароль Redis
 	RedisDB       int    // Номер базы данных Redis
+	ServerAddr    string // Адрес сервера
 }
 
 func LoadConfig() *Config {
@@ -36,6 +38,7 @@ func LoadConfig() *Config {
 		RedisAddr:     os.Getenv("REDIS_ADDR"),
 		RedisPassword: os.Getenv("REDIS_PASSWORD"),
 		RedisDB:       atoi(os.Getenv("REDIS_DB")),
+		ServerAddr:    os.Getenv("SERVER_ADDR"),
 	}
 }
 

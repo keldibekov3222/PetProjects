@@ -21,9 +21,19 @@ func NewOrderRepository(db *pgx.Conn) *OrderRepository {
 
 func (r *OrderRepository) CreateOrder(order *models.Order) error {
 	currentTime := time.Now()
-	query := `INSERT INTO orders (id, user_id, total_price, status, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, $6)`
+	query := `
+		INSERT INTO orders (id, user_id, total_price, status, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6)
+	`
 
-	_, err := r.DB.Exec(context.Background(), query, order.ID, order.UserID, order.TotalPrice, order.Status, currentTime, currentTime)
+	_, err := r.DB.Exec(context.Background(), query,
+		order.ID,
+		order.UserID, // Теперь это UUID
+		order.TotalPrice,
+		order.Status,
+		currentTime,
+		currentTime,
+	)
 	if err != nil {
 		log.Printf("error inserting order: %v", err)
 		return err
@@ -108,9 +118,10 @@ func (r *OrderRepository) GetOrdersByUserID(userID string) ([]models.Order, erro
 
 	// Создаем SQL запрос для получения заказов пользователя
 	query := `
-		SELECT id, user_id, total_price, status, created_at, updated_at 
-		FROM orders 
-		WHERE user_id = $1`
+		SELECT o.id, o.user_id, o.total_price, o.status, o.created_at, o.updated_at
+		FROM orders o
+		JOIN users u ON o.user_id = u.id
+		WHERE u.id = $1`
 
 	// Выполняем запрос
 	rows, err := r.DB.Query(ctx, query, userID)

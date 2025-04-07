@@ -1,10 +1,11 @@
 package handlers
 
 import (
-	"github.com/gin-gonic/gin"
 	"net/http"
 	"order-service/models"
 	"order-service/services"
+
+	"github.com/gin-gonic/gin"
 )
 
 type ProductHandler struct {
@@ -19,8 +20,10 @@ func (h *ProductHandler) CreateProduct(c *gin.Context) {
 	var product models.Product
 	if err := c.ShouldBindJSON(&product); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
 	}
 
+	// Если IDString не задан в запросе, он будет сгенерирован в репозитории
 	err := h.Service.CreateProduct(&product)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create product"})

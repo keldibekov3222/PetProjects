@@ -8,7 +8,7 @@ type Product struct {
 	Description string             `bson:"description"`
 	Price       float64            `bson:"price"`
 	Stock       int                `bson:"stock"`
-	IDString    string             `bson:"-"` // Игнорируем это поле при работе с MongoDB
+	IDString    string             `bson:"idString,omitempty"` // Добавляем поле для хранения UUID
 }
 
 type ProductResponse struct {

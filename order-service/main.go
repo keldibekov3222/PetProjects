@@ -2,8 +2,10 @@ package main
 
 import (
 	"context"
+	"flag"
 	"log"
 	"order-service/config"
+	"order-service/db"
 	"order-service/handlers"
 	"order-service/repositories"
 	"order-service/routes"
@@ -14,20 +16,35 @@ import (
 )
 
 func main() {
+	// Определяем флаг для запуска только миграций
+	migrateOnly := flag.Bool("migrate", false, "Run database migrations only")
+	flag.Parse()
+
 	// Загружаем конфигурацию
 	cfg := config.LoadConfig()
 
-	// Подключение к PostgreSQL для заказов
-	db, err := repositories.ConnectDB(cfg)
+	// Подключение к PostgreSQL для заказов и пользователей
+	dbConn, err := repositories.ConnectDB(cfg)
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer func() {
 		log.Println("Closing database connection")
-		db.Close(context.Background())
+		dbConn.Close(context.Background())
 	}()
 
-	// Подключение к MongoDB для продуктов и пользователей
+	// Применяем миграции
+	if err := db.MigrateConfig(cfg); err != nil {
+		log.Fatalf("Failed to migrate database: %v", err)
+	}
+
+	// Если указан флаг -migrate, завершаем работу после миграций
+	if *migrateOnly {
+		log.Println("Migrations completed successfully. Exiting.")
+		return
+	}
+
+	// Подключение к MongoDB для продуктов
 	mongoRepo, err := repositories.NewMongoDBRepository(cfg.MongoURI, cfg.MongoDB)
 	if err != nil {
 		log.Fatal("Failed to connect to MongoDB", err)
@@ -39,20 +56,20 @@ func main() {
 	})
 
 	// Репозитории
-	orderRepo := repositories.NewOrderRepository(db)
+	orderRepo := repositories.NewOrderRepository(dbConn)
+	userRepo := repositories.NewUserRepository(dbConn)
 	productRepo := repositories.NewProductRepository(mongoRepo.DB)
-	userRepo := repositories.NewUserRepository(mongoRepo.DB)
 
 	// Сервисы
 	orderService := services.NewOrderService(orderRepo, redisClient)
-	productService := services.NewProductService(productRepo, redisClient)
 	userService := services.NewUserService(userRepo, redisClient)
-	cartService := services.NewCartService(redisClient, productRepo, orderRepo)
+	productService := services.NewProductService(productRepo, redisClient)
+	cartService := services.NewCartService(redisClient, productRepo, orderRepo, userRepo)
 
 	// Хендлеры
 	orderHandler := handlers.NewOrderHandler(orderService)
-	productHandler := handlers.NewProductHandler(productService)
 	userHandler := handlers.NewUserHandler(userService)
+	productHandler := handlers.NewProductHandler(productService)
 	cartHandler := handlers.NewCartHandler(cartService)
 
 	// Создание и настройка Gin
@@ -62,7 +79,9 @@ func main() {
 	routes.RegisterRoutes(r, userHandler, orderHandler, productHandler, cartHandler)
 
 	// Запуск сервера
-	if err := r.Run(":8080"); err != nil {
-		log.Fatal("Error starting server:", err)
+	serverAddr := cfg.ServerAddr
+	if serverAddr == "" {
+		serverAddr = ":8080" // Default address if not configured
 	}
+	r.Run(serverAddr)
 }

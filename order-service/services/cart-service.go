@@ -4,30 +4,45 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/google/uuid"
-	"github.com/redis/go-redis/v9"
 	"order-service/models"
 	"order-service/repositories"
 	"time"
+
+	"github.com/google/uuid"
+	"github.com/redis/go-redis/v9"
 )
 
 type CartService struct {
 	RedisClient *redis.Client
-	ProductRepo *repositories.ProductRepository // Добавляем репозиторий продуктов
+	ProductRepo *repositories.ProductRepository
 	OrderRepo   *repositories.OrderRepository
+	UserRepo    *repositories.UserRepository
 }
 
-func NewCartService(redisClient *redis.Client, productRepo *repositories.ProductRepository, orderRepo *repositories.OrderRepository) *CartService {
+func NewCartService(redisClient *redis.Client, productRepo *repositories.ProductRepository, orderRepo *repositories.OrderRepository, userRepo *repositories.UserRepository) *CartService {
 	return &CartService{
 		RedisClient: redisClient,
 		ProductRepo: productRepo,
 		OrderRepo:   orderRepo,
+		UserRepo:    userRepo,
 	}
 }
 
 func (s *CartService) AddToCart(userID, productID string, quantity int) error {
 	ctx := context.Background()
 	key := fmt.Sprintf("cart:%s", userID)
+
+	// Проверяем существование пользователя
+	_, err := s.UserRepo.GetUserByID(userID)
+	if err != nil {
+		return fmt.Errorf("user not found: %v", err)
+	}
+
+	// Проверяем существование продукта
+	_, err = s.ProductRepo.GetProductById(productID)
+	if err != nil {
+		return fmt.Errorf("product not found: %v", err)
+	}
 
 	// Проверяем, есть ли уже этот товар в корзине
 	existingQuantity, err := s.RedisClient.HGet(ctx, key, productID).Int()

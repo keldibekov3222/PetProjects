@@ -4,51 +4,82 @@ import (
 	"context"
 	"fmt"
 	"order-service/models"
+	"time"
 
-	"go.mongodb.org/mongo-driver/bson"
-	"go.mongodb.org/mongo-driver/bson/primitive"
-	"go.mongodb.org/mongo-driver/mongo"
+	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 )
 
 type UserRepository struct {
-	DB *mongo.Database
+	DB *pgx.Conn
 }
 
-func NewUserRepository(db *mongo.Database) *UserRepository {
+func NewUserRepository(db *pgx.Conn) *UserRepository {
 	return &UserRepository{DB: db}
 }
 
 // Создание нового пользователя
 func (r *UserRepository) CreateUser(user *models.User) error {
-	user.ID = primitive.NewObjectID()
-	_, err := r.DB.Collection("users").InsertOne(context.Background(), user)
+	user.ID = uuid.New().String()
+	query := `
+		INSERT INTO users (id, username, email, password, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6)
+	`
+	now := time.Now()
+	_, err := r.DB.Exec(context.Background(), query,
+		user.ID,
+		user.Username,
+		user.Email,
+		user.Password,
+		now,
+		now,
+	)
 	return err
 }
 
 // Получение пользователя по email
 func (r *UserRepository) GetUserByEmail(email string) (*models.User, error) {
 	var user models.User
-	err := r.DB.Collection("users").FindOne(context.Background(), bson.M{"email": email}).Decode(&user)
+	query := `
+		SELECT id, username, email, password, created_at, updated_at
+		FROM users
+		WHERE email = $1
+	`
+	err := r.DB.QueryRow(context.Background(), query, email).Scan(
+		&user.ID,
+		&user.Username,
+		&user.Email,
+		&user.Password,
+		&user.CreatedAt,
+		&user.UpdatedAt,
+	)
 	if err != nil {
-		if err == mongo.ErrNoDocuments {
-			return nil, nil // Нет документа с таким email
+		if err == pgx.ErrNoRows {
+			return nil, nil
 		}
-		return nil, err // Ошибка при запросе
+		return nil, err
 	}
 	return &user, nil
 }
+
+// Получение пользователя по ID
 func (r *UserRepository) GetUserByID(id string) (*models.User, error) {
 	var user models.User
-	// Преобразуем строковый id в ObjectId
-	objectID, err := primitive.ObjectIDFromHex(id)
+	query := `
+		SELECT id, username, email, password, created_at, updated_at
+		FROM users
+		WHERE id = $1
+	`
+	err := r.DB.QueryRow(context.Background(), query, id).Scan(
+		&user.ID,
+		&user.Username,
+		&user.Email,
+		&user.Password,
+		&user.CreatedAt,
+		&user.UpdatedAt,
+	)
 	if err != nil {
-		return nil, fmt.Errorf("invalid user ID format: %v", err)
-	}
-
-	// Ищем пользователя по ObjectId
-	err = r.DB.Collection("users").FindOne(context.Background(), bson.M{"_id": objectID}).Decode(&user)
-	if err != nil {
-		if err == mongo.ErrNoDocuments {
+		if err == pgx.ErrNoRows {
 			return nil, fmt.Errorf("user not found")
 		}
 		return nil, err
@@ -56,54 +87,70 @@ func (r *UserRepository) GetUserByID(id string) (*models.User, error) {
 	return &user, nil
 }
 
+// Получение всех пользователей
 func (r *UserRepository) GetAllUsers() ([]models.User, error) {
 	var users []models.User
-	cursor, err := r.DB.Collection("users").Find(context.Background(), bson.M{})
+	query := `
+		SELECT id, username, email, password, created_at, updated_at
+		FROM users
+	`
+	rows, err := r.DB.Query(context.Background(), query)
 	if err != nil {
 		return nil, err
 	}
-	defer cursor.Close(context.Background())
+	defer rows.Close()
 
-	for cursor.Next(context.Background()) {
+	for rows.Next() {
 		var user models.User
-		if err := cursor.Decode(&user); err != nil {
+		err := rows.Scan(
+			&user.ID,
+			&user.Username,
+			&user.Email,
+			&user.Password,
+			&user.CreatedAt,
+			&user.UpdatedAt,
+		)
+		if err != nil {
 			return nil, err
 		}
 		users = append(users, user)
 	}
 
-	if err := cursor.Err(); err != nil {
+	if err := rows.Err(); err != nil {
 		return nil, err
 	}
 
 	return users, nil
 }
+
+// Обновление пользователя
 func (r *UserRepository) UpdateUser(user *models.User) error {
-	_, err := r.DB.Collection("users").UpdateOne(
-		context.Background(),
-		bson.M{"_id": user.ID}, // Идентификатор пользователя
-		bson.M{
-			"$set": bson.M{
-				"username": user.Username,
-				"email":    user.Email,
-			},
-		},
+	query := `
+		UPDATE users
+		SET username = $1, email = $2, updated_at = $3
+		WHERE id = $4
+	`
+	_, err := r.DB.Exec(context.Background(), query,
+		user.Username,
+		user.Email,
+		time.Now(),
+		user.ID,
 	)
 	return err
 }
-func (r *UserRepository) DeleteUser(id string) error {
-	// В случае MongoDB нужно использовать ObjectID, если ID хранится как строка
-	objID, err := primitive.ObjectIDFromHex(id)
-	if err != nil {
-		return fmt.Errorf("invalid user ID format: %v", err)
-	}
 
-	result, err := r.DB.Collection("users").DeleteOne(context.Background(), bson.M{"_id": objID})
+// Удаление пользователя
+func (r *UserRepository) DeleteUser(id string) error {
+	query := `
+		DELETE FROM users
+		WHERE id = $1
+	`
+	result, err := r.DB.Exec(context.Background(), query, id)
 	if err != nil {
 		return err
 	}
 
-	if result.DeletedCount == 0 {
+	if result.RowsAffected() == 0 {
 		return fmt.Errorf("user not found")
 	}
 

@@ -10,7 +10,7 @@ type CartItem struct {
 
 type Order struct {
 	ID         string     `json:"id"`
-	UserID     string     `json:"user_id"`
+	UserID     string     `json:"user_id"` // UUID, внешний ключ к таблице users
 	Items      []CartItem `json:"items"`
 	TotalPrice float64    `json:"total_price"`
 	Status     string     `json:"status"`
